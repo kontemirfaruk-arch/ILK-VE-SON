@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>İLK VE SON — Bölüm 1 Demo | Nexa Games Stüdyo</title>
+<style>
+:root{--cyan:#9be8e8;--panel:rgba(5,10,15,.88);--muted:#9caeb8}
+*{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05090d;color:#eaf2f4;font-family:Arial,Helvetica,sans-serif}
+canvas{display:block}
+#menu,#ending{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#18252b 0%,#080d12 58%,#020406 100%)}
+.panel{width:min(620px,92vw);padding:34px;border:1px solid #526a72;background:rgba(4,9,13,.88);box-shadow:0 0 60px #000;border-radius:8px}
+.brand{letter-spacing:.32em;color:var(--cyan);font-size:13px;text-align:center;margin-bottom:20px}
+h1{font-size:clamp(36px,8vw,68px);letter-spacing:.12em;text-align:center;margin:0 0 6px;font-weight:800}
+.sub{text-align:center;color:#9fb1b9;letter-spacing:.22em;font-size:12px;margin-bottom:28px}
+p{line-height:1.6;color:#c2cdd1}
+button{display:block;margin:24px auto 0;padding:14px 28px;background:#c3eeee;color:#071014;border:0;font-weight:bold;letter-spacing:.12em;cursor:pointer}
+button:hover{background:#fff}
+.small{font-size:12px;color:var(--muted);text-align:center}
+#hud{position:fixed;inset:0;z-index:2;pointer-events:none;display:none}
+#objective{position:absolute;top:22px;left:22px;background:var(--panel);border-left:3px solid var(--cyan);padding:12px 16px;max-width:min(390px,80vw);font-size:14px}
+#objective b{display:block;color:var(--cyan);font-size:10px;letter-spacing:.18em;margin-bottom:7px}
+#hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);background:var(--panel);padding:11px 18px;border:1px solid #50636a;font-size:13px;white-space:nowrap}
+#cross{position:absolute;left:50%;top:50%;width:6px;height:6px;border:1px solid #d7eeee;border-radius:50%;transform:translate(-50%,-50%);opacity:.75}
+#toast{position:absolute;top:22%;left:50%;transform:translateX(-50%);background:var(--panel);padding:13px 20px;max-width:80vw;text-align:center;border:1px solid #60747b;opacity:0;transition:opacity .3s}
+#dialogue{position:absolute;bottom:8%;left:50%;transform:translateX(-50%);width:min(720px,90vw);padding:18px 22px;background:rgba(3,7,10,.94);border-top:2px solid var(--cyan);font-size:15px;line-height:1.55;display:none}
+#dialogue .who{font-size:10px;color:var(--cyan);letter-spacing:.2em;margin-bottom:7px}
+#progress{position:absolute;right:22px;top:22px;color:#c2d1d6;font-size:12px;letter-spacing:.12em;background:var(--panel);padding:10px 12px}
+#ending{display:none}
+kbd{border:1px solid #72848b;padding:2px 6px;border-radius:3px;color:#fff}
+</style>
+</head>
+<body>
+<div id="menu">
+ <div class="panel">
+  <div class="brand">NEXA GAMES STÜDYO SUNAR</div>
+  <h1>İLK VE SON</h1><div class="sub">BÖLÜM 1 — SİNYAL</div>
+  <p>Eski iş yerinden gelen bir kaset seni buraya çağırdı. İçeride neler olduğunu bilmiyorsun. Tek yapman gereken sinyalin kaynağını bulmak ve çıkış kapısını açmak.</p>
+  <p><b>Kontroller:</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hareket · Fare kamera · <kbd>E</kbd> etkileşim · <kbd>ESC</kbd> fareyi serbest bırak</p>
+  <button id="start">DEMO'YA BAŞLA</button>
+  <div class="small">3D TARAYICI PROTOTİPİ · PC İÇİN TASARLANDI</div>
+ </div>
+</div>
+<div id="hud">
+ <div id="objective"><b>GÖREV</b><span id="objtext">Kaset odasına ulaş.</span></div>
+ <div id="progress">KANITLAR: 0 / 3</div>
+ <div id="cross"></div><div id="hint">WASD ile hareket et · Fareyle etrafa bak</div>
+ <div id="toast"></div>
+ <div id="touchControls">
+  <div id="stickBase"><div id="stickKnob"></div></div>
+  <div id="lookZone"></div>
+  <button id="mobileE" type="button">ETKİLEŞ</button>
+ </div>
+ <div id="dialogue"><div class="who" id="who">LILIA</div><div id="line"></div></div>
+</div>
+<div id="ending">
+ <div class="panel">
+  <div class="brand">NEXA GAMES STÜDYO</div>
+  <h1 style="font-size:clamp(30px,7vw,54px)">SİNYAL KESİLDİ</h1>
+  <div class="sub">BÖLÜM 1 DEMO SONU</div>
+  <p>Kapı açıldı. Fakat kasetteki ses son bir şey söyledi: “Beni burada bırakma.”</p>
+  <p class="small">Bu, İLK VE SON'un ilk oynanabilir prototipidir. Sonraki bölümde hikâye devam edecek.</p>
+  <button onclick="location.reload()">TEKRAR OYNA</button>
+ </div>
+</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const menu=document.querySelector('#menu'), hud=document.querySelector('#hud'), ending=document.querySelector('#ending');
+const hint=document.querySelector('#hint'), toast=document.querySelector('#toast'), objtext=document.querySelector('#objtext');
+const progress=document.querySelector('#progress'), dialogue=document.querySelector('#dialogue'), line=document.querySelector('#line'), who=document.querySelector('#who');
+let scene,camera,renderer,started=false,locked=false,toastTimer,dialogueTimer;
+let yaw=0,pitch=0,keys={},found=0,doorOpen=false,near=null,elapsed=0;
+let touchMoveX=0,touchMoveY=0,lookTouch=null;
+const interactables=[];
+const clock=new THREE.Clock();
+const player={x:0,y:1.7,z:7.5};
+const colliders=[];
+const mat=(color,roughness=0.85,emissive=0)=>new THREE.MeshStandardMaterial({color,roughness,emissive,emissiveIntensity:emissive?0.5:0});
+const wallMat=mat(0x28353a), floorMat=mat(0x182126), metal=mat(0x46565b), dark=mat(0x0b1115), glow=mat(0x7ccccc,.4,0x1c7777), amber=mat(0xb58b4d,.5,0x6b3c0c);
+function box(x,y,z,sx,sy,sz,m,solid=false){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),m);o.position.set(x,y,z);scene.add(o);if(solid)colliders.push({x,z,hx:sx/2,hz:sz/2});return o}
+function labelSprite(text){
+ const c=document.createElement('canvas'),ctx=c.getContext('2d');c.width=512;c.height=128;
+ ctx.fillStyle='#091217';ctx.fillRect(0,0,512,128);ctx.strokeStyle='#81caca';ctx.lineWidth=5;ctx.strokeRect(4,4,504,120);
+ ctx.fillStyle='#d9eeee';ctx.font='bold 34px Arial';ctx.textAlign='center';ctx.fillText(text,256,78);
+ const tex=new THREE.CanvasTexture(c),s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
+ s.scale.set(3.2,.8,1);return s;
+}
+function addInteract(x,y,z,name,kind,desc){
+ const g=new THREE.Group();g.position.set(x,y,z);scene.add(g);
+ let obj;
+ if(kind==='cassette'){obj=new THREE.Mesh(new THREE.BoxGeometry(.8,.22,.55),dark);g.add(obj);const reel1=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.05,16),glow);reel1.rotation.x=Math.PI/2;reel1.position.set(-.18,.13,0);g.add(reel1);const reel2=reel1.clone();reel2.position.x=.18;g.add(reel2);}
+ else if(kind==='clue'){obj=new THREE.Mesh(new THREE.BoxGeometry(.55,.7,.08),amber);g.add(obj);const stripe=boxLocal(.0,.12,.06,.38,.04,.02,glow);g.add(stripe);}
+ else {obj=new THREE.Mesh(new THREE.BoxGeometry(.7,.45,.45),metal);g.add(obj);const lamp=new THREE.Mesh(new THREE.SphereGeometry(.08,12,12),glow);lamp.position.set(0,.28,.24);g.add(lamp);}
+ interactables.push({group:g,name,kind,desc,used:false});
+}
+function boxLocal(x,y,z,sx,sy,sz,m){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),m);o.position.set(x,y,z);return o}
+function build(){
+ scene=new THREE.Scene();scene.background=new THREE.Color(0x070d11);scene.fog=new THREE.Fog(0x070d11,8,34);
+ camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,100);camera.position.set(player.x,player.y,player.z);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.HemisphereLight(0x8aa8b2,0x101518,1.15));
+ const light=new THREE.PointLight(0x9adede,2.2,17);light.position.set(0,3.4,1);scene.add(light);
+ const lamp2=new THREE.PointLight(0xb38a4b,1.1,10);lamp2.position.set(-5,3,-7);scene.add(lamp2);
+ // corridor and connected rooms
+ box(0,-.25,0,14,.5,32,floorMat);
+ box(0,3.2,0,14,.4,32,dark);
+ box(-7,1.5,0,.4,3,32,wallMat,true);box(7,1.5,0,.4,3,32,wallMat,true);
+ box(0,1.5,-16,14,3,.4,wallMat,true);box(0,1.5,16,14,3,.4,wallMat,true);
+ // room partitions with open passages
+ box(-3.2,1.5,-5,7.6,3,.35,wallMat,true);box(4.7,1.5,-5,4.6,3,.35,wallMat,true);
+ box(-4.5,1.5,-10,5,.35,wallMat,true);box(4.5,1.5,-10,5,.35,wallMat,true);
+ // pipes and industrial details
+ for(let z=-14;z<14;z+=4){box(-6.55,2.65,z,.12,.12,3.5,metal);box(6.55,2.65,z,.12,.12,3.5,metal);}
+ for(let z=-13;z<13;z+=3){box(0,.015,z,12,.025,.035,metal);}
+ // consoles
+ box(-4.9,.8,-7,1.1,1.6,.8,metal,true);box(-4.9,1.65,-7,.85,.1,.55,dark);
+ const monitor=box(-4.9,1.9,-7.38,.72,.48,.08,glow);monitor.rotation.x=-.1;
+ box(4.9,.7,-12,1.2,1.4,.9,metal,true);
+ // warning signs
+ const sign=labelSprite('ERİŞİM: KISITLI');sign.position.set(0,2.55,-4.2);scene.add(sign);
+ const sign2=labelSprite('KAYIT ODASI');sign2.position.set(0,2.55,-13.5);scene.add(sign2);
+ // exit door at far end
+ const door=box(0,1.45,-15.55,2.4,2.8,.25,metal);door.userData.door=true;scene.userData.exitDoor=door;
+ box(-1.5,1.4,-15.5,.35,2.9,.5,wallMat,true);box(1.5,1.4,-15.5,.35,2.9,.5,wallMat,true);
+ addInteract(0,1.05,-2.2,'Kaset','cassette','Kaseti dinle');
+ addInteract(-4.9,1.25,-7,'Terminal kaydı','clue','Terminaldeki kaydı incele');
+ addInteract(4.9,1.2,-12,'Personel notu','clue','Notu oku');
+ addInteract(-2.2,1.1,-13.2,'Güvenlik kartı','clue','Kartı al');
+ addInteract(0,1,-14.2,'Çıkış paneli','panel','Kapıyı aç');
+ // ambient flickering lights
+ for(const z of [-1,-6,-11]){const p=new THREE.PointLight(0x6ba7ad,.75,7);p.position.set(0,2.8,z);scene.add(p);p.userData.base=.75;p.userData.phase=Math.random()*5;}
+ window.addEventListener('resize',resize);
+}
+function resize(){if(!camera)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+function showToast(t){toast.textContent=t;toast.style.opacity=1;clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.style.opacity=0,2600);}
+function say(s,speaker='LILIA',duration=4300){who.textContent=speaker;line.textContent=s;dialogue.style.display='block';clearTimeout(dialogueTimer);dialogueTimer=setTimeout(()=>dialogue.style.display='none',duration);}
+function lock(){renderer.domElement.requestPointerLock?.();}
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement;});
+document.addEventListener('mousemove',e=>{if(!locked)return;yaw-=e.movementX*.0022;pitch-=e.movementY*.0018;pitch=Math.max(-1.35,Math.min(1.35,pitch));});
+document.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyE'&&started)interact();});
+document.addEventListener('keyup',e=>keys[e.code]=false);
+
+// Mobil joystick: sol başparmak hareket, sağ başparmak kamera.
+const stickBase=document.querySelector('#stickBase'), stickKnob=document.querySelector('#stickKnob');
+let stickPointer=null;
+stickBase.addEventListener('pointerdown',e=>{stickPointer=e.pointerId;stickBase.setPointerCapture(e.pointerId);moveStick(e);});
+stickBase.addEventListener('pointermove',e=>{if(e.pointerId===stickPointer)moveStick(e);});
+function resetStick(){stickPointer=null;touchMoveX=0;touchMoveY=0;stickKnob.style.transform='translate(0px,0px)';}
+stickBase.addEventListener('pointerup',resetStick);stickBase.addEventListener('pointercancel',resetStick);
+function moveStick(e){
+ const r=stickBase.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+ let dx=e.clientX-cx,dy=e.clientY-cy;const max=38,len=Math.hypot(dx,dy);
+ if(len>max){dx=dx/len*max;dy=dy/len*max;}
+ touchMoveX=dx/max;touchMoveY=dy/max;stickKnob.style.transform=`translate(${dx}px,${dy}px)`;
+}
+const lookZone=document.querySelector('#lookZone');
+lookZone.addEventListener('pointerdown',e=>{lookTouch={id:e.pointerId,x:e.clientX,y:e.clientY};lookZone.setPointerCapture(e.pointerId);});
+lookZone.addEventListener('pointermove',e=>{if(!lookTouch||lookTouch.id!==e.pointerId)return;const dx=e.clientX-lookTouch.x,dy=e.clientY-lookTouch.y;yaw-=dx*.006;pitch-=dy*.005;pitch=Math.max(-1.35,Math.min(1.35,pitch));lookTouch.x=e.clientX;lookTouch.y=e.clientY;});
+lookZone.addEventListener('pointerup',()=>lookTouch=null);lookZone.addEventListener('pointercancel',()=>lookTouch=null);
+document.querySelector('#mobileE').addEventListener('pointerdown',e=>{e.preventDefault();if(started)interact();});
+function interact(){
+ if(!near){showToast('Etkileşim kurulacak bir şey yok.');return;}
+ const a=near;if(a.used&&a.kind!=='panel'){showToast('Bunu zaten inceledin.');return;}
+ if(a.kind==='cassette'){
+  a.used=true;objtext.textContent='Üç kaydı bul ve çıkış paneline ulaş.';
+  say('Merhaba... Beni duyabiliyor musun? Ben Lilia. Burada yalnız değilsin. Lütfen kayıtları bul.','LILIA',5200);
+  showToast('Kaset başladı. Bir ses sana sesleniyor.');
+ }else if(a.kind==='clue'){
+  if(!a.used){a.used=true;found++;progress.textContent=`KANITLAR: ${found} / 3`;
+   const messages=[
+    'Kayıt: “Michael Epps, Alex’in yardımcısı olarak tesise giriş yaptı.”',
+    'Not: “Bazı bölümlerin erişimi uzaktan kapatıldı. Yetki kartı gerekli.”',
+    'Kartın üzerinde eski bir amblem var. Arka yüzünde tek kelime yazıyor: İLK.'
+   ];
+   say(messages[Math.min(found-1,2)],'TESİS KAYDI',5200);
+   if(found===3){objtext.textContent='Çıkış panelini etkinleştir.';showToast('Üç kayıt da bulundu. Çıkış paneli etkinleşti.');}
+  }
+ }else if(a.kind==='panel'){
+  if(found<3){showToast(`Panel kilitli. Eksik kayıt: ${3-found}`);return;}
+  doorOpen=true;const d=scene.userData.exitDoor;d.position.y=3.4;
+  say('Kapı açıldı. Güzel... Şimdi çıkabilirsin. Ama bir şey daha var. Beni burada bırakma.','LILIA',6000);
+  objtext.textContent='Açılan çıkış kapısına ilerle.';
+  a.used=true;showToast('Çıkış kapısı açıldı.');
+ }
+}
+function update(dt){
+ if(!started)return;
+ const speed=4.2,forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+ let move=new THREE.Vector3();
+ if(keys.KeyW||keys.ArrowUp)move.add(forward);if(keys.KeyS||keys.ArrowDown)move.sub(forward);
+ if(keys.KeyD||keys.ArrowRight)move.add(right);if(keys.KeyA||keys.ArrowLeft)move.sub(right);
+ if(Math.abs(touchMoveY)>.08)move.addScaledVector(forward,-touchMoveY);
+ if(Math.abs(touchMoveX)>.08)move.addScaledVector(right,touchMoveX);
+ if(move.lengthSq())move.normalize().multiplyScalar(speed*dt);
+ const nx=player.x+move.x,nz=player.z+move.z;
+ const blocked=colliders.some(c=>Math.abs(nx-c.x)<c.hx+.32&&Math.abs(nz-c.z)<c.hz+.32);
+ if(!blocked){player.x=THREE.MathUtils.clamp(nx,-6.2,6.2);player.z=THREE.MathUtils.clamp(nz,-15.1,15.1);}
+ camera.position.set(player.x,player.y,player.z);
+ camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
+ near=null;let best=2.15;
+ for(const a of interactables){const dist=a.group.position.distanceTo(camera.position);if(dist<best){best=dist;near=a;}}
+ if(near){hint.innerHTML=`<kbd>E</kbd> — ${near.name}`;}else{hint.innerHTML='WASD ile hareket et · Fareyle etrafa bak';}
+ if(doorOpen&&player.z<-14.7&&Math.abs(player.x)<1.5){ending.style.display='flex';hud.style.display='none';document.exitPointerLock?.();started=false;}
+ elapsed+=dt;
+ scene.traverse(o=>{if(o.isPointLight&&o.userData.phase!==undefined)o.intensity=o.userData.base*(.82+.18*Math.sin(elapsed*3+o.userData.phase));});
+}
+function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);update(dt);if(renderer)renderer.render(scene,camera);}
+document.querySelector('#start').addEventListener('click',()=>{build();started=true;menu.style.display='none';hud.style.display='block';say('Burası eskiden çalıştığın yer. Kaset odasına git.','SİSTEM',3500);
+ if(matchMedia('(pointer:fine)').matches)lock();animate();});
+</script>
+</body>
+</html>
